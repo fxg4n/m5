@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "market_data_models"
+version = "0.1.0"
+description = "Machine learning models for market data analysis"
+authors = [{name = "M5 Dev Team", email = "dev@m5.com"}]
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=6.0", "black", "flake8", "mypy"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
