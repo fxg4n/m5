@@ -1,29 +1,42 @@
+mod app;
+mod infrastructure;
 mod api;
-mod config;
-mod db;
-mod error;
 mod graphql;
-mod models;
+mod domain;
 
 use std::net::SocketAddr;
 
-use config::Config;
-use db::pool::create_pool;
-use error::AppError;
+use app::config::Config;
+use app::error::AppError;
+use infrastructure::database::create_pool;
 use graphql::schema::create_schema;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
+    init_logging();
+
+    let config = Config::from_env()?;
+    
+    let pool = setup_database(&config).await?;
+
+    let schema = create_schema(pool);
+
+    run_server(config, schema).await?;
+
+    Ok(())
+}
+
+fn init_logging() {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .with(tracing_subscriber::fmt::layer())
         .init();
+}
 
-    let config = Config::from_env()?;
-    
-    let pool = create_pool(&config).await.map_err(|e| {
+async fn setup_database(config: &Config) -> Result<sqlx::PgPool, AppError> {
+    let pool = create_pool(config).await.map_err(|e| {
         tracing::error!("Failed to create database pool: {}", e);
         AppError::Database(e)
     })?;
@@ -38,8 +51,10 @@ async fn main() -> Result<(), AppError> {
         })?;
     tracing::info!("Migrations completed successfully");
 
-    let schema = create_schema(pool);
+    Ok(pool)
+}
 
+async fn run_server(config: Config, schema: graphql::schema::Schema) -> Result<(), AppError> {
     let app = api::routes::create_router(schema)
         .layer(TraceLayer::new_for_http());
 
@@ -49,7 +64,10 @@ async fn main() -> Result<(), AppError> {
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
-        .unwrap();
+        .map_err(|e| {
+            tracing::error!("Server error: {}", e);
+            AppError::Server(e.into())
+        })?;
 
     Ok(())
 }

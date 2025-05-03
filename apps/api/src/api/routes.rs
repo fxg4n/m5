@@ -1,12 +1,11 @@
-use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
-use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::{
-    extract::State,
-    response::{Html, IntoResponse},
-    routing::get,
     Router,
+    routing::get,
+    extract::State,
+    response::IntoResponse,
+    http::StatusCode,
 };
-
+use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use crate::graphql::schema::AppSchema;
 
 pub fn create_router(schema: AppSchema) -> Router {
@@ -17,11 +16,11 @@ pub fn create_router(schema: AppSchema) -> Router {
 }
 
 async fn health_check() -> impl IntoResponse {
-    "OK"
+    StatusCode::OK
 }
 
 async fn graphql_playground() -> impl IntoResponse {
-    Html(playground_source(GraphQLPlaygroundConfig::new("/graphql")))
+    async_graphql_axum::GraphQLPlaygroundResponse::new("/graphql")
 }
 
 async fn graphql_handler(
