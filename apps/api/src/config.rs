@@ -1,32 +1,27 @@
-use std::env;
-use dotenv::dotenv;
+use serde::Deserialize;
+use std::net::{IpAddr, SocketAddr};
+use std::str::FromStr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Deserialize)]
 pub struct Config {
-    pub mongodb_uri: String,
-    pub database_name: String,
-    pub port: u16,
+    pub database_url: String,
+    pub server_host: String,
+    pub server_port: u16,
 }
 
 impl Config {
-    pub fn init() -> Self {
-        dotenv().ok();
-
-        let mongodb_uri = env::var("MONGODB_URI")
-            .unwrap_or_else(|_| "mongodb://localhost:27017".to_string());
+    pub fn from_env() -> Result<Self, config::ConfigError> {
+        dotenv::dotenv().ok();
         
-        let database_name = env::var("DATABASE_NAME")
-            .unwrap_or_else(|_| "rust_axum_graphql_db".to_string());
-        
-        let port = env::var("PORT")
-            .unwrap_or_else(|_| "8000".to_string())
-            .parse::<u16>()
-            .unwrap_or(8000);
+        let config = config::Config::builder()
+            .add_source(config::Environment::default())
+            .build()?;
 
-        Self {
-            mongodb_uri,
-            database_name,
-            port,
-        }
+        config.try_deserialize()
+    }
+
+    pub fn server_addr(&self) -> SocketAddr {
+        let ip = IpAddr::from_str(&self.server_host).expect("Invalid host address");
+        SocketAddr::new(ip, self.server_port)
     }
 }

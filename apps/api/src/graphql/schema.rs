@@ -1,12 +1,13 @@
 use async_graphql::{EmptySubscription, Schema};
+use sqlx::PgPool;
 
-use crate::db::DbConn;
-use crate::graphql::{Mutation, Query};
+use super::mutation::Mutation;
+use super::query::Query;
 
 pub type AppSchema = Schema<Query, Mutation, EmptySubscription>;
 
-pub fn create_schema(db_conn: DbConn) -> AppSchema {
+pub fn create_schema(pool: PgPool) -> AppSchema {
     Schema::build(Query, Mutation, EmptySubscription)
-        .data(db_conn)
+        .data(pool)
         .finish()
 }

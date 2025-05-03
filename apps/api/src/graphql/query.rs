@@ -1,53 +1,32 @@
 use async_graphql::{Context, Object, Result};
-use bson::{doc, oid::ObjectId};
-use mongodb::Collection;
+use sqlx::PgPool;
+use uuid::Uuid;
 
-use crate::db::DbConn;
-use crate::error::AppError;
-use crate::models::User;
+use crate::models::user::User;
 
 pub struct Query;
 
 #[Object]
 impl Query {
-    async fn get_user(&self, ctx: &Context<'_>, id: String) -> Result<Option<User>> {
-        let db_conn = ctx.data::<DbConn>().unwrap();
-        let user_collection: Collection<User> = db_conn.database().collection(User::collection_name());
-
-        let object_id = ObjectId::parse_str(&id).map_err(|_| {
-            AppError::ValidationError("Invalid ObjectId format".to_string())
-        })?;
-
-        let user = user_collection
-            .find_one(doc! { "_id": object_id }, None)
-            .await
-            .map_err(AppError::DatabaseError)?;
-
-        Ok(user)
+    async fn hello(&self) -> &str {
+        "Hello, world!"
     }
 
-    async fn get_users(&self, ctx: &Context<'_>) -> Result<Vec<User>> {
-        let db_conn = ctx.data::<DbConn>().unwrap();
-        let user_collection: Collection<User> = db_conn.database().collection(User::collection_name());
-
-        let mut cursor = user_collection
-            .find(None, None)
-            .await
-            .map_err(AppError::DatabaseError)?;
-
-        let mut users = Vec::new();
-        while let Some(user) = cursor
-            .try_next()
-            .await
-            .map_err(AppError::DatabaseError)?
-        {
-            users.push(user);
-        }
-
+    async fn users(&self, ctx: &Context<'_>) -> Result<Vec<User>> {
+        let pool = ctx.data::<PgPool>()?;
+        let users = User::find_all(pool).await?;
         Ok(users)
     }
 
-    async fn health(&self) -> &'static str {
-        "OK"
+    async fn user_by_id(&self, ctx: &Context<'_>, id: Uuid) -> Result<Option<User>> {
+        let pool = ctx.data::<PgPool>()?;
+        let user = User::find_by_id(id, pool).await?;
+        Ok(user)
+    }
+
+    async fn user_by_username(&self, ctx: &Context<'_>, username: String) -> Result<Option<User>> {
+        let pool = ctx.data::<PgPool>()?;
+        let user = User::find_by_username(&username, pool).await?;
+        Ok(user)
     }
 }
