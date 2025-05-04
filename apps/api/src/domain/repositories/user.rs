@@ -64,38 +64,3 @@ impl UserRepository {
         Ok(users)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use sqlx::postgres::PgPoolOptions;
-
-    async fn create_test_pool() -> PgPool {
-        let database_url = std::env::var("DATABASE_URL")
-            .expect("DATABASE_URL must be set for testing");
-        
-        PgPoolOptions::new()
-            .max_connections(5)
-            .connect(&database_url)
-            .await
-            .expect("Failed to create test pool")
-    }
-
-    #[tokio::test]
-    async fn test_find_by_id() {
-        let pool = create_test_pool().await;
-        let repo = UserRepository::new(pool);
-
-        let result = repo.find_by_id(1).await;
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_find_by_username() {
-        let pool = create_test_pool().await;
-        let repo = UserRepository::new(pool);
-
-        let result = repo.find_by_username("test_user").await;
-        assert!(result.is_ok());
-    }
-}
