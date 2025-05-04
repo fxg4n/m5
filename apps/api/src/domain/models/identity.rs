@@ -18,7 +18,7 @@ pub struct User {
     pub sessions: Vec<UserSession>,
     #[graphql(skip)]
     #[sqlx(skip)]
-    pub audit_logs: Vec<AuditLog>,
+    pub audit_logs: Vec<AuditLog>
 }
 
 impl User {
@@ -30,7 +30,7 @@ impl User {
             created_at: Utc::now(),
             last_login: None,
             sessions: Vec::new(),
-            audit_logs: Vec::new(),
+            audit_logs: Vec::new()
         }
     }
 }
