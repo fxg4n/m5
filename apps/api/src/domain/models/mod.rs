@@ -1,3 +1,3 @@
-mod user;
+mod identity;
 
-pub use user::{User, UserSession};
+pub use identity::{User, UserSession, AuditLog};
