@@ -1,25 +1,55 @@
-use anyhow::Result;
 use std::sync::Arc;
+use anyhow::Result;
+use tokio::signal;
 
-use crate::config::AppConfig;
-use crate::infrastructure::database::connection::DatabasePool;
+use crate::config::Config;
+use crate::infrastructure::database;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub config: AppConfig,
-    pub db_pool: DatabasePool,
+    pub config: Config,
+    pub db_pool: database::connection::DatabasePool,
 }
 
-pub async fn bootstrap(config: &AppConfig) -> Result<Arc<AppState>> {
-    let db_pool = crate::infrastructure::database::connection::create_pool(config).await?;
-    
-    crate::infrastructure::database::migrations::run_migrations(&db_pool).await?;
-    
-    
+pub async fn init() -> Result<Arc<AppState>> {
+    let config = Config::load()?;
+
+    crate::common::logging::init(
+        &config.app.environment,
+        "debug",
+    );
+
+    let db_pool = database::connection::create_pool(&config).await?;
+    database::migrations::run_migrations(&db_pool).await?;
+
     let app_state = AppState {
-        config: config.clone(),
+        config,
         db_pool,
     };
-    
+
     Ok(Arc::new(app_state))
+}
+
+pub async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }
